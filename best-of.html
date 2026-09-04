@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Best of Smyrna Bulldogs Football | @balocka_creative</title>
+<style>
+:root {
+  --purple: #4B0082; --purple-light: #6B23A0; --purple-dark: #2D004F;
+  --gold: #FFB81C; --gold-light: #FFD060; --gold-dark: #CC9300;
+  --bg: #0D0D1A; --surface: rgba(21,21,40,0.92); --border: #2A2A4A;
+  --text: #F0F0F5; --muted: #8892B0; --radius: 14px;
+  --shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+.hero {
+  background: linear-gradient(135deg, rgba(45,0,79,0.9), rgba(75,0,130,0.7)),
+              url('hero_bg.jpg') center/cover no-repeat;
+  padding: 60px 24px 48px; text-align: center;
+  border-bottom: 3px solid var(--gold); position: relative; overflow: hidden;
+}
+.hero::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(to bottom, transparent, rgba(13,13,26,0.5));
+  pointer-events: none;
+}
+.hero-mark {
+  font-size: 0.7rem; letter-spacing: 0.3em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 10px; font-weight: 600; position: relative; z-index: 1;
+}
+.hero h1 {
+  font-size: 2.6rem; font-weight: 800; color: #fff;
+  margin-bottom: 6px; letter-spacing: -0.02em; position: relative; z-index: 1;
+}
+.hero h1 .accent { color: var(--gold); }
+.hero-tag {
+  font-size: 0.9rem; color: rgba(255,255,255,0.6); margin-top: 8px;
+  position: relative; z-index: 1;
+}
+.hero-meta {
+  display: flex; justify-content: center; gap: 16px; margin-top: 18px;
+  flex-wrap: wrap; position: relative; z-index: 1;
+}
+.hero-meta span {
+  font-size: 0.75rem; color: rgba(255,255,255,0.5);
+  display: flex; align-items: center; gap: 5px;
+}
+.hero-meta span::before {
+  content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--gold);
+}
+.container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+.intro {
+  text-align: center; margin-bottom: 32px; font-size: 0.9rem; color: var(--muted);
+  max-width: 600px; margin-left: auto; margin-right: auto;
+}
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+.gallery-item {
+  background: var(--surface); backdrop-filter: blur(10px);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; transition: transform 0.2s, box-shadow 0.2s;
+}
+.gallery-item:hover {
+  transform: translateY(-4px); box-shadow: var(--shadow);
+  border-color: var(--gold-dark);
+}
+.gallery-item img {
+  width: 100%; display: block; aspect-ratio: 3/2; object-fit: cover;
+}
+.gallery-caption {
+  padding: 12px 16px; font-size: 0.8rem; color: var(--muted);
+}
+.gallery-caption .jerseys {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px;
+}
+.gallery-caption .jersey-pill {
+  background: var(--purple); color: var(--gold);
+  padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600;
+}
+.footer {
+  text-align: center; padding: 40px 24px; border-top: 1px solid var(--border);
+  margin-top: 40px; background: rgba(13,13,26,0.8); backdrop-filter: blur(10px);
+}
+.footer-brand { font-size: 1.1rem; font-weight: 700; color: var(--gold); margin-bottom: 4px; }
+.footer-tag { font-size: 0.8rem; color: var(--muted); }
+.footer-link {
+  display: inline-block; margin-top: 12px; padding: 8px 20px;
+  border: 1px solid var(--gold); border-radius: 20px; color: var(--gold);
+  text-decoration: none; font-size: 0.8rem; font-weight: 600;
+}
+@media (max-width: 640px) {
+  .hero h1 { font-size: 1.8rem; }
+  .gallery { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-mark">Smyrna Bulldogs Football &middot; 2026 Season</div>
+  <h1>Best <span class="accent">Of</span></h1>
+  <div class="hero-tag">Top 18 shots &middot; enhanced &middot; watermarked &middot; shot on Canon EOS R7</div>
+  <div class="hero-meta">
+    <span>@balocka_creative</span>
+    <span>#onlyoneshs</span>
+    <span>Aug 28, 2026 vs Hendersonville</span>
+  </div>
+</div>
+
+<div class="container">
+  <div class="intro">
+    A curated selection of the best shots from the season. Every photo is shot, sorted, and graded by Blake McConnell — volunteer photographer, Smyrna HS parent. Photos are enhanced and watermarked with @balocka_creative. Clean unwatermarked versions available on request.
+  </div>
+  <div class="gallery" id="gallery"></div>
+</div>
+
+<div class="footer">
+  <div class="footer-brand">@balocka_creative &middot; #onlyoneshs</div>
+  <div class="footer-tag">Smyrna Bulldogs Football &middot; 2026 Season</div>
+  <a class="footer-link" href="index.html">View Full Catalog &rarr;</a>
+</div>
+
+<script>
+const photos = [
+  ["CD32C5BA","#9","Rear 3/4 portrait — dreadlocks, gold helmet, sideline"],
+  ["65AC0730","#2, #3, #4","Teammates connecting — #2 extending hand to #3"],
+  ["AD15581D","#5","Running with ball, full sprint, right hip carry"],
+  ["DF5EFCC9","#5","Running with ball, scanning field, forward lean"],
+  ["8AA7CE7F","#9","Profile portrait, hands clasped, focused"],
+  ["584026BA","#8","Rear 3/4 adjusting gloves, BULLDOGS on chest"],
+  ["_MGL0636","#12, #15, #21","Tackle — #15 swarmed by #12 and #21"],
+  ["_MGL0635","#21, #12","Running play — #21 carrying, #12 supporting"],
+  ["_MGL0634","#12, #56, #3","Line of scrimmage — #12 driving forward"],
+  ["_MGL0633","#63, #12, #21","LOS battle — #63 blocking, #12 rushing"],
+  ["_MGL0632","#12, #6, #55, #3, #63","Passing play — QB #12 in pocket"],
+  ["_MGL0631","#8, #12, #55, #5, #14","Pre-snap defensive alignment"],
+  ["_MGL0630","#12, #55, #63, #1, #8","Pre-snap tension — center ready to snap"],
+  ["_MGL0626","#6","Defensive ready stance, scanning field"],
+  ["_MGL0625","#14","Standing, looking left, ready stance"],
+  ["_MGL0624","#14","Rear 3/4, looking left, towel at waist"],
+  ["_MGL0623","#14","Profile, looking left, JW on helmet"],
+  ["_MGL0622","#14","3/4 view, BULLDOGS on chest, looking downfield"]
+];
+
+const gallery = document.getElementById('gallery');
+photos.forEach(p => {
+  const jerseys = p[1].split(', ').map(j => `<span class="jersey-pill">${j}</span>`).join('');
+  const div = document.createElement('div');
+  div.className = 'gallery-item';
+  div.innerHTML = `
+    <img src="enhanced/${p[0]}.jpeg" alt="${p[2]}" loading="lazy">
+    <div class="gallery-caption">
+      <div>${p[2]}</div>
+      <div class="jerseys">${jerseys}</div>
+    </div>
+  `;
+  gallery.appendChild(div);
+});
+</script>
+</body>
+</html>
