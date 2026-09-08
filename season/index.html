@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smyrna Bulldogs Football — Season Photo Hub | @balocka_creative</title>
+<style>
+:root {
+  --purple: #4B0082; --purple-deep: #2D004F; --gold: #FFB81C; --gold-dark: #C99213;
+  --bg: #0D0D1A; --card: rgba(21,21,40,.92); --border: rgba(255,184,28,.18);
+  --text: #EDEAF5; --muted: #9A93B5;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; min-height:100vh; }
+header {
+  background: linear-gradient(135deg, var(--purple-deep) 0%, var(--purple) 55%, #1a0533 100%);
+  border-bottom: 3px solid var(--gold); padding: 28px 20px 22px; text-align:center;
+}
+header h1 { font-size: clamp(1.4rem, 4vw, 2.2rem); letter-spacing: .06em; text-transform: uppercase; }
+header h1 span { color: var(--gold); }
+header p { color: var(--muted); margin-top: 6px; font-size: .95rem; }
+.stats { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-top:14px; }
+.stat { background: rgba(0,0,0,.28); border:1px solid var(--border); border-radius:10px; padding:8px 18px; }
+.stat b { color: var(--gold); font-size:1.15rem; display:block; }
+.stat small { color: var(--muted); }
+
+.controls { position: sticky; top: 0; z-index: 20; background: rgba(13,13,26,.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 12px 16px; }
+.tabs, .tierbar { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+.tabs { margin-bottom: 10px; }
+button { cursor:pointer; border-radius: 8px; font-weight: 600; font-size: .85rem; transition: all .15s; }
+.tab { background: var(--card); color: var(--text); border: 1px solid var(--border); padding: 8px 14px; }
+.tab.active { background: var(--gold); color: #1a1200; border-color: var(--gold); }
+.tab .cnt { opacity:.7; font-weight:400; margin-left:5px; font-size:.78rem; }
+.tier { background: transparent; color: var(--muted); border: 1px solid transparent; padding: 4px 12px; }
+.tier.active { color: var(--gold); border-color: var(--gold-dark); }
+.tier b { font-size: .8rem; }
+#search { width: min(420px, 90%); margin: 10px auto 0; display:block; background: var(--card); border:1px solid var(--border); border-radius: 8px; color: var(--text); padding: 9px 14px; font-size: .95rem; }
+#search:focus { outline:none; border-color: var(--gold-dark); }
+
+#grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; padding: 18px; max-width: 1500px; margin: 0 auto; }
+.pc { position:relative; border-radius: 10px; overflow:hidden; border:1px solid var(--border); background:var(--card); aspect-ratio: 3/2; }
+.pc img { width:100%; height:100%; object-fit:cover; display:block; transition: transform .25s; }
+.pc:hover img { transform: scale(1.05); }
+.pc .tierbadge { position:absolute; top:8px; left:8px; padding: 2px 9px; border-radius: 6px; font-size:.72rem; font-weight:800; }
+.Aplus { background: var(--gold); color:#1a1200; }
+.A { background: #7B2FBE; color: white; }
+.Bplus { background: rgba(255,255,255,.85); color:#333; }
+.pc .rank { position:absolute; bottom:8px; right:10px; font-size:.7rem; color: var(--muted); background: rgba(0,0,0,.55); padding:1px 7px; border-radius:5px; }
+
+.empty { text-align:center; color: var(--muted); padding: 60px 20px; font-size:1.05rem; }
+#light { position:fixed; inset:0; background: rgba(5,5,12,.93); display:none; z-index:50; align-items:center; justify-content:center; flex-direction:column; gap:12px; }
+#light img { max-width:94vw; max-height:82vh; border-radius:10px; border:1px solid var(--gold-dark); }
+#light .meta { color: var(--gold); font-weight:700; }
+#light .x { position:absolute; top:18px; right:26px; font-size:2rem; color:var(--muted); cursor:pointer; }
+
+#cover { max-width:1200px; margin: 30px auto 60px; padding: 0 18px; display:none; }
+#cover h2 { font-size:1.2rem; border-bottom:2px solid var(--gold); display:inline-block; padding-bottom:6px; margin-bottom:14px; }
+#cover .pgrid { display:grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap:10px; }
+.pcard { background: var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; align-items:center; gap:10px; cursor:pointer; }
+.pcard:hover { border-color: var(--gold-dark); }
+.pcard .j { width:36px; height:36px; border-radius:50%; background:var(--purple); border:2px solid var(--gold); display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--gold); flex:none; }
+.pcard .nm { font-weight:600; font-size:.88rem; }
+.pcard .info { color:var(--muted); font-size:.75rem; }
+.pcard .ph { margin-left:auto; font-size:.78rem; color:var(--gold); font-weight:700; }
+footer { text-align:center; color:var(--muted); padding: 26px; font-size:.85rem; border-top:1px solid var(--border); }
+footer b { color: var(--gold); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Smyrna <span>Bulldogs</span> Football</h1>
+  <p>2026 Season Photo Hub — every keeper shot, ranked &middot; @balocka_creative &middot; #onlyoneshs</p>
+  <div class="stats" id="stats"></div>
+</header>
+
+<div class="controls">
+  <div class="tabs" id="tabs"></div>
+  <div class="tierbar" id="tierbar"></div>
+  <input id="search" type="text" placeholder="Search player: name or #jersey — e.g. '13' or 'Sanders'">
+</div>
+
+<div id="grid"></div>
+<div id="cover">
+  <h2>Roster — tap a player to find their photos</h2>
+  <div class="pgrid" id="pgrid"></div>
+</div>
+
+<div id="light"><span class="x" onclick="closeLight()">✕</span><img id="lightimg"><div class="meta" id="lightmeta"></div></div>
+<footer>Free for players &amp; families &middot; DM <b>@balocka_creative</b> for your full-res shots &middot; credit appreciated</footer>
+
+<script src="data.js"></script>
+<script>
+const D = window.SEASON_DATA;
+let curGame = D.games[0].id, curTier = 'all';
+
+// stats
+const totalKept = D.games.reduce((s,g)=>s+g.photos.length,0);
+document.getElementById('stats').innerHTML =
+  `<div class="stat"><b>${totalKept}</b><small>keeper photos</small></div>
+   <div class="stat"><b>${D.games.filter(g=>g.photos.length).length}</b><small>games covered</small></div>
+   <div class="stat"><b>${D.roster.length}</b><small>roster players</small></div>`;
+
+const tabs = document.getElementById('tabs');
+tabs.innerHTML = D.games.map(g =>
+  `<button class="tab ${g.id===curGame?'active':''}" data-g="${g.id}">${g.label}<span class="cnt">${g.photos.length}</span></button>`
+).join('') + `<button class="tab" data-g="__cover__">📋 All Players</button>`;
+
+tabs.addEventListener('click', e => {
+  const b = e.target.closest('.tab'); if (!b) return;
+  curGame = b.dataset.g;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t===b));
+  render();
+});
+
+const tierbar = document.getElementById('tierbar');
+tierbar.innerHTML = ['all','A+','A','B+'].map(t=>{
+  const n = t==='all'?null:null;
+  return `<button class="tier ${t==='all'?'active':''}" data-t="${t}"><b>${t==='all'?'All tiers':t}</b></button>`;
+}).join('');
+tierbar.addEventListener('click', e => {
+  const b = e.target.closest('.tier'); if (!b) return;
+  curTier = b.dataset.t;
+  document.querySelectorAll('.tier').forEach(t=>t.classList.toggle('active', t===b));
+  render();
+});
+
+const grid = document.getElementById('grid');
+const cover = document.getElementById('cover');
+
+function gamePhotos() { const g = D.games.find(x=>x.id===curGame); return g?g.photos:[]; }
+
+function render() {
+  if (curGame === '__cover__') { grid.style.display='none'; cover.style.display='block'; renderCover(); return; }
+  grid.style.display='grid'; cover.style.display='none';
+  let ps = gamePhotos();
+  if (curTier !== 'all') ps = ps.filter(p=>p.tier===(curTier==='A+'?'A+':curTier==='A'?'A':'B+'));
+  if (!ps.length) { grid.innerHTML = '<div class="empty">No shots in this tier yet for this game.</div>'; return; }
+  grid.innerHTML = ps.slice(0, 900).map((p,i)=>
+    `<div class="pc" onclick="openLight('${p.id}')">
+       <img loading="lazy" src="${p.t}">
+       <span class="tierbadge ${p.tier==='A+'?'Aplus':p.tier==='A'?'A':'Bplus'}">${p.tier}</span>
+       <span class="rank">#${i+1}</span>
+     </div>`).join('');
+}
+
+function renderCover() {
+  // count photos per game for each roster player via jersey search across notes not available;
+  // show roster sorted alphabetically with per-game tab counts as a coverage map
+  const pg = document.getElementById('pgrid');
+  pg.innerHTML = D.roster.map(r=>
+    `<div class="pcard" onclick="searchPlayer('${r.jersey}','${r.name.replace(/'/g,"\\'")}')">
+      <div class="j">${r.jersey}</div>
+      <div><div class="nm">${r.name}</div><div class="info">${r.pos} · ${r.class}</div></div>
+    </div>`).join('');
+}
+
+function searchPlayer(jersey, name) {
+  document.getElementById('search').value = name;
+  alert('Photos are sorted by game, best first — the tier grid above shows every keeper from each game. Use the search box to find your shots once your jersey numbers are tagged (tagging happens during post-game culling).');
+}
+
+document.getElementById('search').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase();
+  if (!q) { render(); return; }
+  grid.style.display='grid'; cover.style.display='none';
+  // search across ALL games for now (jersey tags will come in later pass)
+  const hits = [];
+  for (const g of D.games) for (const p of g.photos) {
+    if (p.id.toLowerCase().includes(q)) hits.push({...p, game:g.label});
+  }
+  grid.innerHTML = hits.length ? hits.slice(0,400).map(p=>
+    `<div class="pc" onclick="openLight('${p.id}')"><img loading="lazy" src="${p.t}"><span class="tierbadge ${p.tier==='A+'?'Aplus':p.tier==='A'?'A':'Bplus'}">${p.tier}</span></div>`
+  ).join('') : `<div class="empty">Jersey tagging comes with the culling pass — for now tap 📋 All Players or pick a game above. ("${q}" not found in tagged photos)</div>`;
+});
+
+function openLight(id) {
+  let p; for (const g of D.games) { p = g.photos.find(x=>x.id===id); if (p) break; }
+  if (!p) return;
+  document.getElementById('lightimg').src = p.t;
+  document.getElementById('lightmeta').textContent = `${p.tier} · ranked #${p.score}`;
+  document.getElementById('light').style.display = 'flex';
+}
+function closeLight(){ document.getElementById('light').style.display='none'; }
+document.getElementById('light').addEventListener('click', e => { if (e.target.id==='light') closeLight(); });
+
+render();
+</script>
+</body>
+</html>
