@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /season/
+Disallow: /memorial/
+Disallow: /photos/
+Disallow: /
+
+# Galleries of minors are intentionally kept out of search engines.
+# Families reach them by direct link only.

@@ -148,9 +148,9 @@ function renderCover() {
   // show roster sorted alphabetically with per-game tab counts as a coverage map
   const pg = document.getElementById('pgrid');
   pg.innerHTML = D.roster.map(r=>
-    `<div class="pcard" onclick="searchPlayer('${r.jersey}','${r.name.replace(/'/g,"\\'")}')">
+    `<div class="pcard" onclick="searchPlayer('${r.jersey}','')">
       <div class="j">${r.jersey}</div>
-      <div><div class="nm">${r.name}</div><div class="info">${r.pos} · ${r.class}</div></div>
+      <div><div class="nm">#${r.jersey}</div><div class="info">${r.pos} · ${r.class}</div></div>
     </div>`).join('');
 }
 
