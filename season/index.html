@@ -69,7 +69,7 @@ footer b { color: var(--gold); }
 <body>
 <header>
   <h1>Smyrna <span>Bulldogs</span> Football</h1>
-  <p>2026 Season Photo Hub — every keeper shot, ranked &middot; @balocka_creative &middot; #onlyoneshs</p>
+  <p>Shot from the stands by a Bulldogs parent — free for players &amp; families &middot; @balocka_creative &middot; #onlyoneshs</p>
   <div class="stats" id="stats"></div>
 </header>
 
@@ -86,7 +86,7 @@ footer b { color: var(--gold); }
 </div>
 
 <div id="light"><span class="x" onclick="closeLight()">✕</span><img id="lightimg"><div class="meta" id="lightmeta"></div></div>
-<footer>Free for players &amp; families &middot; DM <b>@balocka_creative</b> for your full-res shots &middot; credit appreciated</footer>
+<footer>A fellow Bulldogs parent shooting from the same seats you sit in &middot; free for players &amp; families, always &middot; DM <b>@balocka_creative</b> for originals &middot; credit appreciated</footer>
 
 <script src="data.js"></script>
 <script>
@@ -101,6 +101,7 @@ document.getElementById('stats').innerHTML =
    <div class="stat"><b>${D.roster.length}</b><small>roster players</small></div>`;
 
 const tabs = document.getElementById('tabs');
+const extraTabs = (D.catchall ? `<button class="tab" data-g="__catchall__">Full Game Gallery<span class="cnt">${D.catchall.photos.length}</span></button>` : '');
 tabs.innerHTML = D.games.map(g =>
   `<button class="tab ${g.id===curGame?'active':''}" data-g="${g.id}">${g.label}<span class="cnt">${g.photos.length}</span></button>`
 ).join('') + `<button class="tab" data-g="__cover__">📋 All Players</button>`;
@@ -130,6 +131,7 @@ const cover = document.getElementById('cover');
 function gamePhotos() { const g = D.games.find(x=>x.id===curGame); return g?g.photos:[]; }
 
 function render() {
+  if (curGame === '__catchall__') { grid.style.display='grid'; cover.style.display='none'; grid.innerHTML = (D.catchall.photos.map((p,i)=>`<div class="pc" onclick="openLight('${p.id}')"><img loading="lazy" src="${p.t}"></div>`).join('')); return; }
   if (curGame === '__cover__') { grid.style.display='none'; cover.style.display='block'; renderCover(); return; }
   grid.style.display='grid'; cover.style.display='none';
   let ps = gamePhotos();
@@ -148,9 +150,9 @@ function renderCover() {
   // show roster sorted alphabetically with per-game tab counts as a coverage map
   const pg = document.getElementById('pgrid');
   pg.innerHTML = D.roster.map(r=>
-    `<div class="pcard" onclick="searchPlayer('${r.jersey}','')">
+    `<div class="pcard" onclick="searchPlayer('${r.jersey}','${r.name.replace(/'/g,"\\'")}')">
       <div class="j">${r.jersey}</div>
-      <div><div class="nm">#${r.jersey}</div><div class="info">${r.pos} · ${r.class}</div></div>
+      <div><div class="nm">${r.name}</div><div class="info">${r.pos} · ${r.class}</div></div>
     </div>`).join('');
 }
 
@@ -163,18 +165,33 @@ document.getElementById('search').addEventListener('input', e => {
   const q = e.target.value.trim().toLowerCase();
   if (!q) { render(); return; }
   grid.style.display='grid'; cover.style.display='none';
-  // search across ALL games for now (jersey tags will come in later pass)
-  const hits = [];
-  for (const g of D.games) for (const p of g.photos) {
-    if (p.id.toLowerCase().includes(q)) hits.push({...p, game:g.label});
+  const tags = D.tags || {smyrna:{}, opponent:{}};
+  const names = D.rosterByNum || {};
+  // numeric -> jersey lookup; text -> name lookup
+  let nums = [];
+  if (/^\d+$/.test(q)) {
+    nums = [String(parseInt(q,10))];
+  } else {
+    nums = Object.entries(names).filter(([n,nm]) => nm.toLowerCase().includes(q)).map(([n])=>n);
   }
-  grid.innerHTML = hits.length ? hits.slice(0,400).map(p=>
-    `<div class="pc" onclick="openLight('${p.id}')"><img loading="lazy" src="${p.t}"><span class="tierbadge ${p.tier==='A+'?'Aplus':p.tier==='A'?'A':'Bplus'}">${p.tier}</span></div>`
-  ).join('') : `<div class="empty">Jersey tagging comes with the culling pass — for now tap 📋 All Players or pick a game above. ("${q}" not found in tagged photos)</div>`;
+  let hits = [];
+  for (const n of nums) {
+    const ids = (tags.smyrna[n]||[]).concat(tags.opponent[n]||[]);
+    for (const id of ids) hits.push({id, t:'t/'+id+'.jpg', num:n});
+  }
+  if (hits.length) {
+    const label = nums.map(n => '#'+n+(names[n]?' '+names[n]:'')).join(', ');
+    grid.innerHTML = '<div class="empty" style="padding:14px">'+hits.length+' photos of '+label+' (Siegel game — more games get tagged after each cull)</div>' +
+      hits.map(h=>`<div class="pc" onclick="openLight('${h.id}')"><img loading="lazy" src="${h.t}"></div>`).join('');
+  } else {
+    grid.innerHTML = `<div class="empty">No tagged photos for "${q}" yet. Jersey tagging currently covers the Siegel game; earlier games are being back-tagged. Browse by game above, or check the Full Game Gallery.</div>`;
+  }
 });
 
 function openLight(id) {
   let p; for (const g of D.games) { p = g.photos.find(x=>x.id===id); if (p) break; }
+  if (!p && D.catchall) p = D.catchall.photos.find(x=>x.id===id);
+  if (!p) { const t='t/'+id+'.jpg'; p={t, tier:'', score:''}; }
   if (!p) return;
   document.getElementById('lightimg').src = p.t;
   document.getElementById('lightmeta').textContent = `${p.tier} · ranked #${p.score}`;
