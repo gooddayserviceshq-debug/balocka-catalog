@@ -1,3 +1,21 @@
+# ⚠️ THIS FILE IS NOT IN EFFECT AND CANNOT BE. DO NOT RELY ON IT. ⚠️
+#
+# Crawlers read robots.txt ONLY from the origin root:
+#     https://gooddayserviceshq-debug.github.io/robots.txt
+# This site is a GitHub Pages *project* site, so its files are served under
+#     https://gooddayserviceshq-debug.github.io/balocka-catalog/...
+# and this file lands at /balocka-catalog/robots.txt, which no crawler fetches.
+# The origin root currently returns 404, so NO robots.txt governs this site at all.
+#
+# Verified 2026-09-16: origin-root robots.txt -> HTTP 404.
+#
+# The actual protection for galleries of minors is the per-page meta tag:
+#     <meta name="robots" content="noindex,noarchive,noimageindex,nofollow">
+# Every page that displays player photos must carry it. Run verify_safety.py
+# to check. Removing that tag exposes the page regardless of what this file says.
+#
+# The rules below are kept only to document intent for humans reading the repo.
+
 User-agent: *
 Disallow: /season/
 Disallow: /memorial/
