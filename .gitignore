@@ -1,0 +1,10 @@
+*.HEIC
+*.heic
+*.MOV
+*.mov
+*.CR3
+*.cr3
+.DS_Store
+# Manifests carry absolute local paths (/Users/<name>/...). Keep them local.
+season-t-manifest.csv
+rehost.sh
