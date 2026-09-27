@@ -71,6 +71,12 @@ ALLOWED_PHRASES = {
     # being added -- this list is the only place a two-word capitalized string
     # is permitted, so it stays short and every entry gets checked.
     "Ridgemont Park", "JV Scrimmage",
+    # Opponent wordmark, not a person: the opposing jerseys on 2026-09-17 read
+    # "THE ROCK". Verified by reading the chest marks in three separate
+    # full-resolution frames, all showing SMYRNA in white against THE ROCK in
+    # navy. Which school uses that wordmark was NOT verified, so the gallery
+    # label says only "@ The Rock".
+    "The Rock",
 }
 
 HUMAN_NAME = re.compile(r"\b[A-Z][a-z]{1,15} [A-Z][a-z]{1,15}\b")
