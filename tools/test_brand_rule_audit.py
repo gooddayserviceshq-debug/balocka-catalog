@@ -136,8 +136,41 @@ def main():
             )
 
     total = len(MUST_FIRE) + len(MUST_NOT_FIRE)
+
+    # Enumeration guards. The detector being correct is worthless if the sweep
+    # never hands it the file. The 2026-09-16 audit passed by scanning a
+    # remembered list of 4 pages; these assert the sweep stays wide.
+    enum_checks = 0
+    files = [audit.rel(f) for f in audit.html_files()]
+
+    enum_checks += 1
+    if "season/data.js" not in files:
+        failures.append(
+            "ENUMERATION: season/data.js is served to every visitor and is "
+            "generated — it must be scanned, not skipped as non-HTML."
+        )
+
+    enum_checks += 1
+    if not any(f.endswith(".html") for f in files):
+        failures.append("ENUMERATION: no .html files enumerated at all.")
+
+    enum_checks += 1
+    html_count = sum(1 for f in files if f.endswith(".html"))
+    if html_count < 12:
+        failures.append(
+            f"ENUMERATION: only {html_count} .html files found, expected >= 12. "
+            "A page was dropped from the sweep."
+        )
+
+    enum_checks += 1
+    if not any(f.endswith(".js") for f in files):
+        failures.append("ENUMERATION: .js served copy is not being scanned.")
+
+    total += enum_checks
+
     print(f"brand_rule_audit detector regression — {total} cases "
-          f"({len(MUST_FIRE)} must-fire, {len(MUST_NOT_FIRE)} must-not-fire)")
+          f"({len(MUST_FIRE)} must-fire, {len(MUST_NOT_FIRE)} must-not-fire, "
+          f"{enum_checks} enumeration guards)")
 
     if failures:
         print(f"\nFAIL — {len(failures)} of {total} cases wrong:\n")

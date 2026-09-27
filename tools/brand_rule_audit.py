@@ -107,12 +107,24 @@ RULES = [
 ]
 
 
+# Every extension the site actually SERVES as text. The 2026-09-16 audit passed
+# by checking a remembered list of 4 pages; scanning only ".html" is the same
+# class of mistake one layer down — season/data.js is served to every visitor and
+# is generated, so a future caption/notes field there would be invisible to a
+# .html-only sweep. Enumerate by "is it served text", not by one extension.
+TEXT_EXTS = (".html", ".js", ".json", ".txt", ".md")
+
+# Directories holding only binary media — skipped for speed, never for content.
+SKIP_DIRS = {".git", "tools", "t", "thumbs", "full", "img", "images"}
+
+
 def html_files():
+    """All served-text files in the repo (name kept for callers/back-compat)."""
     found = []
     for dirpath, dirnames, filenames in os.walk(REPO_ROOT):
-        dirnames[:] = [d for d in dirnames if d not in (".git", "tools")]
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
         for name in sorted(filenames):
-            if name.endswith(".html"):
+            if name.endswith(TEXT_EXTS):
                 found.append(os.path.join(dirpath, name))
     return sorted(found)
 
@@ -127,6 +139,8 @@ def live_url(path):
         return LIVE_BASE + "/"
     if r.endswith("/index.html"):
         return LIVE_BASE + "/" + r[: -len("index.html")]
+    # Non-HTML served assets (season/data.js, robots.txt, ...) are fetched at
+    # their literal path — only index.html collapses to a directory URL.
     return LIVE_BASE + "/" + r
 
 
@@ -168,7 +182,7 @@ def main():
     mode = "LIVE" if args.live else "REPO"
     print(f"Balocka brand-rule audit — {mode}")
     print(f"Repo root: {REPO_ROOT}")
-    print(f"HTML pages enumerated: {len(files)}")
+    print(f"Served text files enumerated: {len(files)}")
     for f in files:
         print(f"  - {rel(f)}" + (f"  -> {live_url(f)}" if args.live else ""))
     print()
