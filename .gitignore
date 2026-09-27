@@ -1,32 +1,32 @@
-*.HEIC
-*.heic
-*.MOV
-*.mov
-*.CR3
-*.cr3
-.DS_Store
-# Manifests carry absolute local paths (/Users/<name>/...). Keep them local.
-season-t-manifest.csv
-rehost.sh
 
-# Tool backups must never be published or committed.
 #
-# publish_day.py, merge_player_tags.py and grade_day.py write their rollback copy
-# as data.js.bak-<epoch> / data.js.grade-bak-<epoch> NEXT TO the file they edit --
-# which is inside season/, the directory GitHub Pages serves. One of these was
-# committed in fdac16d and was live at
 # .../season/data.js.bak-1790519527 (HTTP 200, 630,248 bytes).
-#
+# Manifests carry absolute local paths (/Users/<name>/...). Keep them local.
 # That copy happened to be clean (checked: 0 names in rosterByNum, 0 named roster
-# entries, 0 "Firstname Lastname" strings), so it was not an incident. The latent
-# risk is real though: these files are pre-edit SNAPSHOTS, so a backup taken
+# Tool backups must never be published or committed.
+# Where the tools now write rollback copies: repo root, NOT the served season/ dir.
+# as data.js.bak-<epoch> / data.js.grade-bak-<epoch> NEXT TO the file they edit --
 # before a privacy fix preserves exactly what the fix removed, and
-# verify_no_names.py only scans TRACKED files -- an untracked backup in a served
+# committed in fdac16d and was live at
 # directory is checked by nothing and one `git add -A` publishes it.
+# entries, 0 "Firstname Lastname" strings), so it was not an incident. The latent
+# publish_day.py, merge_player_tags.py and grade_day.py write their rollback copy
+# risk is real though: these files are pre-edit SNAPSHOTS, so a backup taken
+# verify_no_names.py only scans TRACKED files -- an untracked backup in a served
+# which is inside season/, the directory GitHub Pages serves. One of these was
+*.CR3
+*.HEIC
+*.MOV
 *.bak-*
+*.cr3
 *.grade-bak-*
+*.heic
+*.mov
+.DS_Store
+.backups/
+__pycache__/
+rehost.sh
+season-t-manifest.csv
 season/data.js.bak-*
 season/data.js.grade-bak-*
-
-# Where the tools now write rollback copies: repo root, NOT the served season/ dir.
-.backups/
+tools/__pycache__/
