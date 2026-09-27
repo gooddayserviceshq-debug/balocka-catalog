@@ -225,11 +225,22 @@ const gamenote = document.getElementById('gamenote');
 function badgeClass(t) { return t === 'A+' ? 'Aplus' : t === 'A' ? 'A' : t === 'B+' ? 'Bplus' : 'New'; }
 function badgeText(t) { return t ? t : 'NEW'; }
 
+/* A frame with no tier but a real score was graded and landed below the keeper
+   floor (60.0) -- it is not "NEW". Badging it red said the opposite of the truth
+   in a gallery whose header already reads "best first", so those frames carry no
+   badge at all. They stay in the gallery (a parent searching a jersey still finds
+   them) and sort to the back behind the graded keepers. */
+function isGraded(p) { return !!p.tier || parseFloat(p.score || 0) > 0; }
+function badgeHTML(p) {
+  if (!p.tier && isGraded(p)) return '';
+  return '<span class="tierbadge ' + badgeClass(p.tier) + '">' + badgeText(p.tier) + '</span>';
+}
+
 function photoCards(ps, withRank) {
   return ps.map(function (p, i) {
     return '<div class="pc" onclick="openLight(\'' + p.id + '\')">' +
       '<img loading="lazy" src="' + p.t + '" alt="">' +
-      '<span class="tierbadge ' + badgeClass(p.tier) + '">' + badgeText(p.tier) + '</span>' +
+      badgeHTML(p) +
       (withRank ? '<span class="rank">#' + (i + 1) + '</span>' : '') + '</div>';
   }).join('');
 }
