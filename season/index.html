@@ -122,7 +122,7 @@ footer .policy { margin-top:12px; font-size:.75rem; color:#7a7394; max-width:620
 <div class="controls">
   <div class="tabs" id="tabs"></div>
   <div class="tierbar" id="tierbar"></div>
-  <input id="search" type="text" placeholder="Find your player: name or #jersey — e.g. '13' or 'Sanders'">
+  <input id="search" type="text" placeholder="Find your player by jersey — e.g. '13'">
 </div>
 
 <div class="gamenote" id="gamenote"></div>
@@ -323,7 +323,11 @@ function runSearch(q) {
   if (/^#?\d+$/.test(q)) {
     nums = [String(parseInt(q.replace('#', ''), 10))];
   } else {
-    nums = Object.keys(names).filter(function (n) { return names[n].toLowerCase().indexOf(q) !== -1; });
+    // Names are intentionally not stored (minors' names never travel). Search is jersey-only.
+    grid.innerHTML = '<div class="empty">Search by jersey number, not name — e.g. <b>13</b>.<br><br>' +
+      'Players\' names aren\'t stored here on purpose. Browse the game tabs above, or ' +
+      '<a href="' + IG_DM + '" style="color:var(--gold)">DM @balocka_creative</a> with the jersey number and I\'ll pull them by hand. Free.</div>';
+    return;
   }
   let hits = [];
   for (const n of nums) {
