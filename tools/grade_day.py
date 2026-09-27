@@ -135,6 +135,22 @@ def save_data_js(d):
     stamp(quiet=True)
 
 
+def backup_data_js(suffix='bak'):
+    """Copy data.js to a rollback file OUTSIDE the served directory.
+
+    Backups used to be written as season/data.js.<suffix>-<epoch>, i.e. inside
+    season/, which GitHub Pages SERVES -- one was committed and publicly
+    fetchable. A backup is a pre-edit snapshot, so one taken before a privacy fix
+    preserves exactly what the fix removed. .backups/ is neither served nor
+    tracked. Mirrors publish_day.backup_data_js.
+    """
+    d = os.path.join(REPO, '.backups')
+    os.makedirs(d, exist_ok=True)
+    dst = os.path.join(d, 'data.js.%s-%d' % (suffix, int(time.time())))
+    shutil.copy2(DATA_JS, dst)
+    return dst
+
+
 def manifest_originals():
     out = {}
     with open(MANIFEST, newline='', encoding='utf-8') as f:
@@ -275,8 +291,7 @@ def main():
             p['tier'] = tier_for(graded[p['id']])
     game['photos'].sort(key=lambda p: -float(p.get('score', 0) or 0))
 
-    bak = DATA_JS + '.grade-bak-%d' % int(time.time())
-    shutil.copy2(DATA_JS, bak)
+    bak = backup_data_js('grade-bak')
     save_data_js(d)
 
     rows, fields = [], None

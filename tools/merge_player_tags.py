@@ -84,6 +84,22 @@ def load_data_js(path=DATA_JS):
     return json.loads(raw[m.end():].strip().rstrip(';'))
 
 
+def backup_data_js(suffix='bak'):
+    """Copy data.js to a rollback file OUTSIDE the served directory.
+
+    Backups used to be written as season/data.js.<suffix>-<epoch>, i.e. inside
+    season/, which GitHub Pages SERVES -- one was committed and publicly
+    fetchable. A backup is a pre-edit snapshot, so one taken before a privacy fix
+    preserves exactly what the fix removed, and verify_no_names.py only scans
+    tracked files. .backups/ is neither served nor tracked.
+    """
+    d = os.path.join(REPO, '.backups')
+    os.makedirs(d, exist_ok=True)
+    dst = os.path.join(d, 'data.js.%s-%d' % (suffix, int(time.time())))
+    shutil.copy2(DATA_JS, dst)
+    return dst
+
+
 def save_data_js(d, path=DATA_JS):
     tmp = path + '.tmp'
     with open(tmp, 'w', encoding='utf-8') as f:
@@ -373,8 +389,7 @@ def main():
               'merged nothing. Fix the cause, do not lower the gate.' % len(skipped))
 
     if a.apply:
-        bak = DATA_JS + '.bak-%d' % int(time.time())
-        shutil.copy2(DATA_JS, bak)
+        bak = backup_data_js()
         save_data_js(d)
         chk = load_data_js()
         assert_no_names(chk, 'reread')

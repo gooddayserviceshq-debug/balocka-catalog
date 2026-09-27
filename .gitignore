@@ -8,3 +8,25 @@
 # Manifests carry absolute local paths (/Users/<name>/...). Keep them local.
 season-t-manifest.csv
 rehost.sh
+
+# Tool backups must never be published or committed.
+#
+# publish_day.py, merge_player_tags.py and grade_day.py write their rollback copy
+# as data.js.bak-<epoch> / data.js.grade-bak-<epoch> NEXT TO the file they edit --
+# which is inside season/, the directory GitHub Pages serves. One of these was
+# committed in fdac16d and was live at
+# .../season/data.js.bak-1790519527 (HTTP 200, 630,248 bytes).
+#
+# That copy happened to be clean (checked: 0 names in rosterByNum, 0 named roster
+# entries, 0 "Firstname Lastname" strings), so it was not an incident. The latent
+# risk is real though: these files are pre-edit SNAPSHOTS, so a backup taken
+# before a privacy fix preserves exactly what the fix removed, and
+# verify_no_names.py only scans TRACKED files -- an untracked backup in a served
+# directory is checked by nothing and one `git add -A` publishes it.
+*.bak-*
+*.grade-bak-*
+season/data.js.bak-*
+season/data.js.grade-bak-*
+
+# Where the tools now write rollback copies: repo root, NOT the served season/ dir.
+.backups/

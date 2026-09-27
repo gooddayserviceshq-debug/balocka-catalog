@@ -159,6 +159,63 @@ def git_ignored(paths):
         return set()
 
 
+# Directories GitHub Pages serves. A file here is a public URL of its own.
+SERVED_DIRS = ("season", "photos", "memorial", "topgun", "smyrna-topgun", "swap")
+
+
+def check_served_backups(failures):
+    """A tool backup inside a SERVED directory is a published file.
+
+    publish_day.py, merge_player_tags.py and grade_day.py write their rollback
+    copy as data.js.bak-<epoch> next to the file they edit -- i.e. inside
+    season/, which GitHub Pages serves. One was committed in fdac16d and was
+    live at .../season/data.js.bak-1790519527 (HTTP 200, 630,248 bytes).
+
+    Two reasons this needs its own check rather than relying on .gitignore:
+
+      1. .gitignore stops the NEXT commit; it does not un-publish a backup that
+         is already tracked. Worse, once ignored the main scan SKIPS the file,
+         so adding the ignore rule alone would silently retire the only check
+         that was looking at it.
+      2. These files are pre-edit SNAPSHOTS. A backup taken before a privacy fix
+         preserves exactly what the fix removed, so its content passing today is
+         not a reason to leave it served.
+
+    A TRACKED backup in a served directory is a hard failure. An untracked one is
+    reported as a warning: it is a local rollback file, correctly ignored, but it
+    sits in a directory where one `git add -f` would publish it.
+    """
+    try:
+        r = subprocess.run(["git", "ls-files"], capture_output=True, text=True)
+        tracked = set(r.stdout.splitlines())
+    except Exception:
+        tracked = set()
+
+    found_tracked, found_local = [], []
+    for d in SERVED_DIRS:
+        if not os.path.isdir(d):
+            continue
+        for f in sorted(os.listdir(d)):
+            if ".bak-" not in f and "-bak-" not in f:
+                continue
+            rel = os.path.join(d, f)
+            (found_tracked if rel in tracked else found_local).append(rel)
+
+    for rel in found_tracked:
+        failures.append(
+            "%s is a TRACKED tool backup inside a served directory -- it is a "
+            "live public URL. Remove it with `git rm --cached %s` and commit; "
+            "backups are pre-fix snapshots and must never be published."
+            % (rel, rel))
+    if found_local:
+        print("=== WARNING: %d untracked tool backup(s) in served directories ==="
+              % len(found_local))
+        for rel in found_local:
+            print("  %s  (git-ignored, so not published -- but it lives in a "
+                  "served dir; tools should write backups outside it)" % rel)
+    return found_tracked, found_local
+
+
 def main():
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     failures = []
@@ -181,6 +238,9 @@ def main():
     print(f"=== local: scanned {len(seen)} tracked text files ===")
     for f in sorted(seen):
         print(f"  {f}")
+
+    print()
+    check_served_backups(failures)
 
     if "--live" in sys.argv:
         base = open("CNAME").read().strip() if os.path.exists("CNAME") else None

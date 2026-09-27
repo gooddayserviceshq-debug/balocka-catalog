@@ -56,6 +56,29 @@ def load_data_js():
     return json.loads(raw[m.end():].strip().rstrip(';'))
 
 
+def backup_data_js(suffix='bak'):
+    """Copy data.js to a rollback file OUTSIDE the served directory.
+
+    WHY NOT NEXT TO THE FILE
+    ------------------------
+    These tools used to write `season/data.js.bak-<epoch>`, i.e. inside season/,
+    which GitHub Pages SERVES. One such backup was committed in fdac16d and was
+    publicly fetchable at .../season/data.js.bak-1790519527 (HTTP 200, 630,248
+    bytes). It happened to be clean, but a backup is a PRE-EDIT SNAPSHOT: one
+    taken before a privacy fix preserves exactly what the fix removed, and
+    verify_no_names.py only scans tracked files, so an untracked backup in a
+    served directory was checked by nothing.
+
+    Backups now go to .backups/ at the repo root -- not served, not tracked --
+    and the path is returned so callers can print it.
+    """
+    d = os.path.join(REPO, '.backups')
+    os.makedirs(d, exist_ok=True)
+    dst = os.path.join(d, 'data.js.%s-%d' % (suffix, int(time.time())))
+    shutil.copy2(DATA_JS, dst)
+    return dst
+
+
 def save_data_js(d):
     tmp = DATA_JS + '.tmp'
     with open(tmp, 'w', encoding='utf-8') as f:
@@ -227,8 +250,7 @@ def main():
         print('   orientations baked:', rot_counts)
         entry = {'id': a.game_id, 'label': a.label, 'sub': a.sub, 'photos': photos}
         d['games'].append(entry)
-        bak = DATA_JS + '.bak-%d' % int(time.time())
-        shutil.copy2(DATA_JS, bak)
+        bak = backup_data_js()
         save_data_js(d)
         with open(MANIFEST, 'a', newline='', encoding='utf-8') as f:
             csv.DictWriter(f, fieldnames=['id', 'file', 'game_id', 'game_label',

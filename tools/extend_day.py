@@ -56,7 +56,8 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from publish_day import (APPLE_EPOCH, DATA_JS, MANIFEST, ORIG, TDIR, DB,
-                         load_data_js, make_thumb, orientations, save_data_js)
+                         backup_data_js, load_data_js, make_thumb, orientations,
+                         save_data_js)
 
 # Where merge_player_tags.py reads its jersey tags from; --only-tagged uses the
 # same source so the two tools cannot disagree about what "tagged" means.
@@ -313,8 +314,7 @@ def main():
             print('   ...%d/%d thumbs' % (added, len(new)))
     print('   orientations baked:', rot)
 
-    bak = DATA_JS + '.bak-%d' % int(time.time())
-    shutil.copy2(DATA_JS, bak)
+    bak = backup_data_js()
     save_data_js(d)
     with open(MANIFEST, 'a', newline='', encoding='utf-8') as f:
         csv.DictWriter(f, fieldnames=['id', 'file', 'game_id', 'game_label',
