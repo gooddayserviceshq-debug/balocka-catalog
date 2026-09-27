@@ -91,6 +91,13 @@ def save_data_js(d, path=DATA_JS):
         json.dump(d, f, ensure_ascii=False, separators=(', ', ': '))
         f.write(';\n')
     os.replace(tmp, path)
+    # Pages serves data.js with max-age=600; an unversioned <script src> leaves
+    # returning visitors on the old catalog for ten minutes. Only stamp when we
+    # wrote the real catalog (tests pass a temp path).
+    if os.path.abspath(path) == os.path.abspath(DATA_JS):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from stamp_data_version import stamp
+        stamp(quiet=True)
 
 
 def all_photo_ids(d):

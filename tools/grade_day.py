@@ -128,6 +128,11 @@ def save_data_js(d):
         json.dump(d, f, ensure_ascii=False, separators=(', ', ': '))
         f.write(';\n')
     os.replace(tmp, DATA_JS)
+    # Pages serves data.js with max-age=600; without a versioned <script src>
+    # the grades would not reach a returning visitor for ten minutes.
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from stamp_data_version import stamp
+    stamp(quiet=True)
 
 
 def manifest_originals():

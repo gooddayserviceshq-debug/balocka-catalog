@@ -156,7 +156,7 @@ footer .policy { margin-top:12px; font-size:.75rem; color:#7a7394; max-width:620
   </div>
 </footer>
 
-<script src="data.js"></script>
+<script src="data.js?v=6152bd48"></script>
 <script>
 const D = window.SEASON_DATA;
 const IG_DM = 'https://ig.me/m/balocka_creative';
@@ -229,18 +229,29 @@ function badgeText(t) { return t ? t : 'NEW'; }
    floor (60.0) -- it is not "NEW". Badging it red said the opposite of the truth
    in a gallery whose header already reads "best first", so those frames carry no
    badge at all. They stay in the gallery (a parent searching a jersey still finds
-   them) and sort to the back behind the graded keepers. */
-function isGraded(p) { return !!p.tier || parseFloat(p.score || 0) > 0; }
-function badgeHTML(p) {
-  if (!p.tier && isGraded(p)) return '';
+   them) and sort to the back behind the graded keepers.
+
+   A graded gallery scores EVERY frame it publishes, including the ones the metric
+   gates out at score 0 (too dark or too flat to measure -- night frames and one
+   blown white frame). Those are measurements, not missing data, so ungraded-ness
+   is a property of the GALLERY, not of a frame's score being 0. Testing score>0
+   per frame mislabeled 13 gated frames as "NEW" in galleries that are fully
+   graded. */
+function gameIsGraded(g) { return !!g && g.photos.some(function (p) { return p.tier; }); }
+function isGraded(p, g) {
+  if (g !== undefined) return gameIsGraded(g);
+  return !!p.tier || parseFloat(p.score || 0) > 0;
+}
+function badgeHTML(p, g) {
+  if (!p.tier && isGraded(p, g)) return '';
   return '<span class="tierbadge ' + badgeClass(p.tier) + '">' + badgeText(p.tier) + '</span>';
 }
 
-function photoCards(ps, withRank) {
+function photoCards(ps, withRank, g) {
   return ps.map(function (p, i) {
     return '<div class="pc" onclick="openLight(\'' + p.id + '\')">' +
       '<img loading="lazy" src="' + p.t + '" alt="">' +
-      badgeHTML(p) +
+      badgeHTML(p, g) +
       (withRank ? '<span class="rank">#' + (i + 1) + '</span>' : '') + '</div>';
   }).join('');
 }
@@ -282,21 +293,32 @@ function render() {
   const g = byId[curGame];
   if (!g) { grid.innerHTML = '<div class="empty">That gallery link is not live yet. Pick a game above.</div>'; return; }
 
-  const graded = g.photos.some(function (p) { return p.tier; });
+  const graded = gameIsGraded(g);
   setTiersEnabled(graded);
 
   let ps = g.photos;
   if (graded && curTier !== 'all') ps = ps.filter(function (p) { return p.tier === curTier; });
 
+  /* Older galleries were culled before publishing, so every published frame is a
+     keeper. The newer nights published the whole take, so "N keepers" would have
+     overstated them: count the frames at or above the 60.0 floor instead of
+     calling the whole gallery keepers. */
+  const keepers = g.photos.filter(function (p) { return !!p.tier; }).length;
+  const countNote = graded
+    ? (keepers === g.photos.length
+        ? g.photos.length.toLocaleString() + ' keepers &middot; best first'
+        : keepers.toLocaleString() + ' keepers of ' +
+          g.photos.length.toLocaleString() + ' &middot; best first')
+    : g.photos.length.toLocaleString() + ' photos &middot; fresh off the card, not graded yet';
+
   gamenote.innerHTML = '<b>' + g.label + '</b>' + (g.sub ? ' — ' + g.sub : '') +
-    ' &middot; ' + g.photos.length.toLocaleString() + ' keepers' +
-    (graded ? ' &middot; best first' : ' &middot; fresh off the card, not graded yet');
+    ' &middot; ' + countNote;
 
   if (!ps.length) {
     grid.innerHTML = '<div class="empty">Nothing in this tier for this game yet. Tap <b>All tiers</b> to see everything.</div>';
     return;
   }
-  grid.innerHTML = photoCards(ps.slice(0, shown), graded) + moreBar(ps.length);
+  grid.innerHTML = photoCards(ps.slice(0, shown), graded, g) + moreBar(ps.length);
 }
 
 function tagCount(num) {

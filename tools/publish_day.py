@@ -63,6 +63,12 @@ def save_data_js(d):
         json.dump(d, f, ensure_ascii=False, separators=(', ', ': '))
         f.write(';\n')
     os.replace(tmp, DATA_JS)
+    # Pages serves data.js with max-age=600, so an unversioned <script src>
+    # keeps returning visitors on the OLD catalog for ten minutes after a
+    # publish. Re-stamp the tag with the new content hash.
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from stamp_data_version import stamp
+    stamp(quiet=True)
 
 
 def local_assets(date):
