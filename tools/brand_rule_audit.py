@@ -29,25 +29,35 @@ import urllib.request
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LIVE_BASE = "https://gooddayserviceshq-debug.github.io/balocka-catalog"
 
-# Lines matching one of these are legitimate and exempt from the rule
-# that triggered on them. Keep each one narrow and commented.
+# Narrow exemptions. Each entry is (pattern, rule_ids) where rule_ids is the
+# set of rules that line is exempt from — or None meaning "exempt from all".
+#
+# Exemptions are SCOPED ON PURPOSE. An earlier version exempted the whole line
+# from every rule whenever it matched, which meant a line reading
+#   "Not affiliated with Smyrna HS. I shoot from the sideline with the
+#    school's permission, ask any coach."
+# audited clean: the disclaimer bought a free pass on three real violations.
+# A disclaimer answers the affiliation question ONLY; it never licenses an
+# access, permission, or staff-routing claim sitting on the same line.
 ALLOWLIST = [
-    # Explicit non-affiliation disclaimers are the correct pattern.
-    re.compile(r"not affiliated with", re.I),
-    re.compile(r"Not affiliated with Smyrna High School", re.I),
+    # Explicit non-affiliation disclaimers are the correct pattern — but they
+    # only excuse the affiliation rule.
+    (re.compile(r"not affiliated with", re.I), {"school-affiliation"}),
     # Gallery DATA ROWS are photo descriptions — subject matter, never access
     # claims. Shape: ["ID","#jersey","description",...] one per line, as emitted
     # into the inline arrays in index.html and best-of.html. Words like
     # "sideline" or "on field" describe where the PLAYERS were, not Blake.
-    re.compile(r'^\s*\["[A-Za-z0-9_]+","[^"]*","[^"]*"'),
-    re.compile(r"filterCards\('huddle'\)", re.I),
+    # Matched by structural shape, not by keyword, so prose can never qualify.
+    (re.compile(r'^\s*\["[A-Za-z0-9_]+","[^"]*","[^"]*"'), None),
+    # UI category filter button for huddle/sideline photo grouping.
+    (re.compile(r"filterCards\('huddle'\)", re.I), {"access-position"}),
 ]
 
 RULES = [
     (
         "access-position",
         re.compile(
-            r"\b(from|on|at|near|along|by)\s+(the\s+)?"
+            r"\b(from|on|at|near|along|by|in|onto|beside)\s+(the\s+)?"
             r"(sideline|side line|field|end ?zone|bench|track)\b",
             re.I,
         ),
@@ -129,9 +139,19 @@ def fetch(url):
 def scan(label, text):
     hits = []
     for lineno, line in enumerate(text.splitlines(), 1):
-        if any(a.search(line) for a in ALLOWLIST):
+        exempt = set()
+        skip_line = False
+        for pattern, rule_ids in ALLOWLIST:
+            if pattern.search(line):
+                if rule_ids is None:
+                    skip_line = True
+                    break
+                exempt |= rule_ids
+        if skip_line:
             continue
         for rule_id, pattern, why in RULES:
+            if rule_id in exempt:
+                continue
             m = pattern.search(line)
             if m:
                 hits.append((label, lineno, rule_id, why, line.strip()[:160], m.group(0)))
