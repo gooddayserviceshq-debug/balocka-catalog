@@ -156,7 +156,7 @@ footer .policy { margin-top:12px; font-size:.75rem; color:#7a7394; max-width:620
   </div>
 </footer>
 
-<script src="data.js?v=960dd50a"></script>
+<script src="data.js?v=531c295c"></script>
 <script>
 const D = window.SEASON_DATA;
 const IG_DM = 'https://ig.me/m/balocka_creative';
@@ -171,6 +171,15 @@ const ALL_GAMES = D.games.slice();
 const GAMES = ALL_GAMES.filter(g => g.photos.length).sort((a, b) => gameDate(b) - gameDate(a));
 const byId = {};
 GAMES.forEach(g => byId[g.id] = g);
+
+/* photo id -> the real record, so a jersey search renders the SAME lightweight
+   derivative the game tabs do. The search path used to synthesise
+   { id, t: 't/'+id+'.jpg' }, which had no thumb key at all -- a jersey with 400
+   tagged frames pulled 400 full tiles (~14MB) even after the grid was wired.
+   Built once over ~10.5k records rather than re-scanned per hit. */
+const BY_PHOTO = {};
+ALL_GAMES.forEach(function (g) { g.photos.forEach(function (p) { BY_PHOTO[p.id] = p; }); });
+if (D.catchall) D.catchall.photos.forEach(function (p) { BY_PHOTO[p.id] = p; });
 
 /* ---- deep link: #g=<gameid> (QR cards), optional &j=<jersey> ---- */
 function readHash() {
@@ -247,10 +256,29 @@ function badgeHTML(p, g) {
   return '<span class="tierbadge ' + badgeClass(p.tier) + '">' + badgeText(p.tier) + '</span>';
 }
 
+/* A grid cell requests the 200px derivative in season/tn (~8KB), not the
+   400-600px tile in season/t (~35KB median). At PAGE_SIZE=300 that is the
+   difference between a 14.7MB first page on the Oakland tab and a 2.4MB one,
+   which is the whole gap between "the gallery is live" and "the gallery is
+   usable on stadium LTE".
+
+   onerror falls back to the tile, so a record whose derivative is missing
+   degrades to a HEAVY image, never to a broken one. `this.onerror = null`
+   first, or a tile that is also missing retries forever. The lightbox is
+   untouched: tapping a cell still opens the full tile from p.t.
+
+   No width/height needed here -- .pc pins aspect-ratio 3/2 in CSS, so the grid
+   cannot reflow as tiles land. */
+function tileImg(p) {
+  var small = p.thumb || p.t;
+  return '<img loading="lazy" decoding="async" src="' + small + '" data-full="' + p.t +
+    '" onerror="this.onerror=null;this.src=this.dataset.full" alt="">';
+}
+
 function photoCards(ps, withRank, g) {
   return ps.map(function (p, i) {
     return '<div class="pc" onclick="openLight(\'' + p.id + '\')">' +
-      '<img loading="lazy" src="' + p.t + '" alt="">' +
+      tileImg(p) +
       badgeHTML(p, g) +
       (withRank ? '<span class="rank">#' + (i + 1) + '</span>' : '') + '</div>';
   }).join('');
@@ -365,13 +393,13 @@ function runSearch(q) {
   let hits = [];
   for (const n of nums) {
     const ids = ((tags.smyrna || {})[n] || []).concat((tags.opponent || {})[n] || []);
-    for (const id of ids) hits.push({ id: id, t: 't/' + id + '.jpg' });
+    for (const id of ids) hits.push(BY_PHOTO[id] || { id: id, t: 't/' + id + '.jpg' });
   }
   if (hits.length) {
     const label = nums.map(function (n) { return '#' + n + (names[n] ? ' ' + names[n] : ''); }).join(', ');
     grid.innerHTML = '<div class="empty" style="padding:12px 18px">' + hits.length + ' tagged photos of <b>' + label +
       '</b> — tap any one, then ask for it full-res, free.</div>' +
-      hits.map(function (h) { return '<div class="pc" onclick="openLight(\'' + h.id + '\')"><img loading="lazy" src="' + h.t + '" alt=""></div>'; }).join('');
+      hits.map(function (h) { return '<div class="pc" onclick="openLight(\'' + h.id + '\')">' + tileImg(h) + '</div>'; }).join('');
   } else {
     grid.innerHTML = '<div class="empty">No tagged photos for "' + q + '" yet — jersey tagging is still catching up on earlier games.<br><br>' +
       'Browse the game tabs above, or <a href="' + IG_DM + '" style="color:var(--gold)">DM @balocka_creative</a> with the jersey number and I\'ll pull them by hand. Free.</div>';
@@ -380,10 +408,9 @@ function runSearch(q) {
 document.getElementById('search').addEventListener('input', function (e) { runSearch(e.target.value); });
 
 function openLight(id) {
-  let p = null;
-  for (const g of ALL_GAMES) { p = g.photos.find(function (x) { return x.id === id; }); if (p) break; }
-  if (!p && D.catchall) p = D.catchall.photos.find(function (x) { return x.id === id; });
-  if (!p) p = { id: id, t: 't/' + id + '.jpg', tier: '' };
+  /* The lightbox deliberately opens p.t, the FULL tile -- the derivative is a
+     grid optimisation, never what a parent looks at. */
+  const p = BY_PHOTO[id] || { id: id, t: 't/' + id + '.jpg', tier: '' };
   document.getElementById('lightimg').src = p.t;
   const g = byId[curGame];
   document.getElementById('lightmeta').textContent =

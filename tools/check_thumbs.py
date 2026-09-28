@@ -17,6 +17,10 @@ stands, without running a publish, so it can be run before a commit or push.
     python3 tools/check_thumbs.py --quiet  # only print violations
 
 Exit codes: 0 clean, 1 violations found, 2 could not scan.
+
+Scans BOTH derivative tiers by default: season/t (THUMB_W=600, the lightbox
+source) and season/tn (THUMB2_W=200, what the grid requests). Pass --dir to
+scan one.
 """
 import argparse
 import os
@@ -29,6 +33,11 @@ sys.path.insert(0, HERE)
 # THUMB_W lives in publish_day so this script and the write guard can never
 # disagree about what "too big" means.
 from publish_day import THUMB_W, TDIR, COLLISION_SUFFIX_RE  # noqa: E402
+# season/tn is the SECOND derivative tier (200px, ~8KB) that the grid actually
+# requests; season/t is now only what the lightbox opens. A pre-push gate that
+# scanned t and not tn would cover half the served derivatives -- the same
+# partial-coverage mistake as gating basenames instead of paths.
+from build_thumbtier import THUMB2_W, TNDIR  # noqa: E402
 
 # A KNOWN, FROZEN set of pre-existing files that break the long-edge rule.
 #
@@ -275,9 +284,11 @@ def scan(tdir=TDIR, limit=THUMB_W, quiet=False, baseline=None, write_baseline=Fa
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--dir', default=TDIR, help='directory to scan (default season/t)')
-    ap.add_argument('--limit', type=int, default=THUMB_W,
-                    help='max allowed long edge in px (default THUMB_W=%d)' % THUMB_W)
+    ap.add_argument('--dir', help='scan ONE directory (default: both t and tn)')
+    ap.add_argument('--limit', type=int,
+                    help='max allowed long edge in px (default: per-tier, '
+                         'THUMB_W=%d for t and THUMB2_W=%d for tn)'
+                         % (THUMB_W, THUMB2_W))
     ap.add_argument('--quiet', action='store_true', help='print only violations')
     ap.add_argument('--no-baseline', action='store_true',
                     help='ignore thumb_baseline.txt and report ALL oversize files')
@@ -286,7 +297,26 @@ def main():
                          '(deliberate act — review the diff before committing)')
     a = ap.parse_args()
     base = {} if a.no_baseline else None
-    sys.exit(scan(a.dir, a.limit, a.quiet, base, a.rewrite_baseline))
+
+    if a.dir:
+        limit = a.limit if a.limit else THUMB_W
+        sys.exit(scan(a.dir, limit, a.quiet, base, a.rewrite_baseline))
+
+    # Default: BOTH served derivative tiers. The baseline's 319 grandfathered
+    # legacy files are a season/t fact, so tn is scanned with no baseline at
+    # all -- it was built from scratch today and has no inherited debt.
+    if a.rewrite_baseline:
+        sys.exit(scan(TDIR, a.limit or THUMB_W, a.quiet, base, True))
+
+    rc = scan(TDIR, a.limit or THUMB_W, a.quiet, base)
+    if os.path.isdir(TNDIR):
+        if not a.quiet:
+            print()
+        rc |= scan(TNDIR, a.limit or THUMB2_W, a.quiet, {})
+    elif not a.quiet:
+        print('\nnote: %s does not exist — run tools/build_thumbtier.py --apply'
+              % os.path.relpath(TNDIR, os.path.dirname(HERE)))
+    sys.exit(rc)
 
 
 if __name__ == '__main__':
