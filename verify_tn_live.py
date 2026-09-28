@@ -29,6 +29,7 @@ import re
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.request
 
 REPO = os.path.dirname(os.path.abspath(__file__))
@@ -55,12 +56,35 @@ def fetch(url, method='GET', timeout=30):
         return r.status, dict(r.headers), body
 
 
-def head(url):
-    try:
-        st, h, _ = fetch(url, 'HEAD', timeout=25)
-        return url, st, h.get('Content-Type', ''), int(h.get('Content-Length') or 0)
-    except Exception as e:
-        return url, 0, 'ERR %s' % type(e).__name__, 0
+def head(url, attempts=3):
+    """HEAD with bounded retry, distinguishing a transient from a real 404.
+
+    Gate 5 HEADs 160 URLs across 16 threads and GitHub Pages rate-limits that
+    burst: one URL came back as a bare HTTPError while the file was present,
+    tracked, in origin/main and served 200 on every manual retry. Reporting
+    that as "Do NOT announce the gallery" is the crying-wolf failure -- a
+    verifier nobody trusts is worse than no verifier. A real 404 still fails,
+    because it fails all three attempts.
+    """
+    last = None
+    for i in range(attempts):
+        try:
+            st, h, _ = fetch(url, 'HEAD', timeout=25)
+            if st == 200:
+                return url, st, h.get('Content-Type', ''), int(h.get('Content-Length') or 0)
+            last = (st, h.get('Content-Type', ''))
+            # 404/410 are verdicts, not weather: do not retry them.
+            if st in (404, 410):
+                return url, st, last[1], 0
+        except urllib.error.HTTPError as e:
+            last = (e.code, 'HTTPError %d' % e.code)
+            if e.code in (404, 410):
+                return url, e.code, last[1], 0
+        except Exception as e:
+            last = (0, 'ERR %s' % type(e).__name__)
+        if i < attempts - 1:
+            time.sleep(1.5 * (i + 1))
+    return url, (last[0] if last else 0), (last[1] if last else 'ERR'), 0
 
 
 def local_head():
@@ -165,6 +189,29 @@ def main():
     bad = [(u, s, c) for u, s, c, _ in res if s != 200 or not c.startswith('image/')]
     gate('%d sampled tn URLs return 200 + image/*' % len(urls), not bad,
          'ok' if not bad else '%d bad, e.g. %s' % (len(bad), bad[:2]))
+
+    # ---- gate 5b: Jekyll's underscore exclusion --------------------------
+    # GitHub Pages runs Jekyll (build_type: legacy) and Jekyll DROPS any path
+    # whose basename starts with "_" unless .nojekyll sits at the repo root.
+    # 35 frames exported as _MGL####.jpg (Canon name minus its leading I) were
+    # therefore 404 on the live site in BOTH tiers -- a pre-existing published
+    # defect, 14 of them jersey-tagged, i.e. a parent searching that number got
+    # a broken tile. Nothing in the repo would ever have shown it: the files are
+    # present, tracked and in origin/main. Only a live HEAD finds this class of
+    # bug, so it gets its own gate rather than luck in a random sample.
+    gate('.nojekyll exists (Jekyll would drop _-prefixed files)',
+         os.path.exists(os.path.join(REPO, '.nojekyll')))
+    und = [p for p in records if os.path.basename(p['t']).startswith('_')]
+    if und:
+        uurls = ([BASE + '/season/' + p['thumb'] for p in und]
+                 + [BASE + '/season/' + p['t'] for p in und])
+        with cf.ThreadPoolExecutor(max_workers=8) as ex:
+            ures = list(ex.map(head, uurls))
+        ubad = [(u, s) for u, s, c, _ in ures
+                if s != 200 or not c.startswith('image/')]
+        gate('all %d _-prefixed frames serve 200 in BOTH tiers' % len(und),
+             not ubad, 'ok' if not ubad
+             else '%d of %d bad, e.g. %s' % (len(ubad), len(uurls), ubad[:1]))
 
     turls = [BASE + '/season/' + p['t'] for p in sample[:40]]
     with cf.ThreadPoolExecutor(max_workers=16) as ex:
