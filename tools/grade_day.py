@@ -194,16 +194,40 @@ def date_from_game_id(gid):
 
 # --------------------------------------------------------------- verify mode
 def verify(n=40):
-    """Prove the metric still reproduces the season's published scores."""
+    """Prove the metric still reproduces the season's published scores.
+
+    GROUND TRUTH MUST BE A MEASUREMENT, NOT A DEFAULT
+    -------------------------------------------------
+    This pool used to accept every photo in the reference galleries, including
+    frames publish_day.py had appended at the placeholder `score: 0, tier: ""`.
+    Those are absent data, not a published grade -- and by 09-28 they were
+    88.3% of the pool (3,094 of 3,502). Measuring such a frame correctly at
+    ~46 scored as a +46 "error", so verify() reported bias +37.5 / MAE 37.6 and
+    FAILED. Since verify() is also the pre-write gate in main(), a correct
+    metric was refusing to write correct grades, and the refusal read as
+    "the metric drifted".
+
+    Filtering the pool to frames that carry a real measurement (score > 0, or
+    score 0 explicitly flagged `gated` by the quality floor) gives
+    bias -0.21 / MAE 0.24 / 2 tier flips in 60 on the same code and the same
+    pixels. A placeholder can never again be mistaken for ground truth.
+    """
     d = load_data_js()
     games = {g['id']: g for g in d['games']}
     orig = manifest_originals()
-    pool = []
+    pool, placeholders = [], 0
     for gid in REFERENCE:
         for p in games.get(gid, {}).get('photos', []):
             o = orig.get(p['id'])
-            if o and os.path.exists(o):
-                pool.append((p['id'], o, p['score'], p['tier']))
+            if not (o and os.path.exists(o)):
+                continue
+            if not float(p.get('score', 0) or 0) and not p.get('gated'):
+                placeholders += 1   # never measured; not evidence of anything
+                continue
+            pool.append((p['id'], o, p['score'], p['tier']))
+    if placeholders:
+        print('verify: excluded %d unmeasured frames from the ground-truth pool'
+              % placeholders)
     if not pool:
         print('VERIFY SKIPPED: no reference originals reachable on this machine')
         return True

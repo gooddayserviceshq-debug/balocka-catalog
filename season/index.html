@@ -156,7 +156,7 @@ footer .policy { margin-top:12px; font-size:.75rem; color:#7a7394; max-width:620
   </div>
 </footer>
 
-<script src="data.js?v=b6332251"></script>
+<script src="data.js?v=942cd410"></script>
 <script>
 const D = window.SEASON_DATA;
 const IG_DM = 'https://ig.me/m/balocka_creative';
@@ -240,19 +240,31 @@ function badgeText(t) { return t ? t : 'NEW'; }
    badge at all. They stay in the gallery (a parent searching a jersey still finds
    them) and sort to the back behind the graded keepers.
 
-   A graded gallery scores EVERY frame it publishes, including the ones the metric
-   gates out at score 0 (too dark or too flat to measure -- night frames and one
-   blown white frame). Those are measurements, not missing data, so ungraded-ness
-   is a property of the GALLERY, not of a frame's score being 0. Testing score>0
-   per frame mislabeled 13 gated frames as "NEW" in galleries that are fully
-   graded. */
-function gameIsGraded(g) { return !!g && g.photos.some(function (p) { return p.tier; }); }
-function isGraded(p, g) {
-  if (g !== undefined) return gameIsGraded(g);
-  return !!p.tier || parseFloat(p.score || 0) > 0;
-}
-function badgeHTML(p, g) {
-  if (!p.tier && isGraded(p, g)) return '';
+   MEASURED-AT-0 vs NEVER-MEASURED. `score: 0` used to mean both, and the comment
+   that stood here claimed it always meant the first ("too dark or too flat to
+   measure -- night frames and one blown white frame"), concluding ungraded-ness
+   was a property of the GALLERY rather than of a frame. That was false. The
+   publish path appends frames at `score: 0, tier: ""` without enqueueing them for
+   grading, and 3,258 frames had reached this hub that way: never opened by a
+   grader. Measured on 09-28, their mean luminance was HIGHER than the graded
+   population's in 3 of 5 tabs, 3,179 of 3,218 scored above the quality floor, and
+   187 were keepers this filter was excluding. They were not unmeasurable; nobody
+   had measured them.
+
+   So data.js now records the two states separately: `gated: 1` marks a frame the
+   metric measured at exactly 0.0 (mean < 40 or contrast < 12 -- a black frame or
+   a blown scoreboard). The key is absent everywhere else, which makes
+
+       measured  <=>  score > 0 || gated
+
+   a testable property instead of a claim in a comment. tools/check_grade_coverage.py
+   fails the build if any published frame has neither. isGraded() tests the FRAME
+   again, as it originally did -- the per-gallery fallback existed only to paper
+   over frames that had no measurement, and there are none. */
+function isGraded(p) { return !!p.tier || parseFloat(p.score || 0) > 0 || !!p.gated; }
+function gameIsGraded(g) { return !!g && g.photos.some(isGraded); }
+function badgeHTML(p) {
+  if (!p.tier && isGraded(p)) return '';
   return '<span class="tierbadge ' + badgeClass(p.tier) + '">' + badgeText(p.tier) + '</span>';
 }
 
@@ -275,11 +287,11 @@ function tileImg(p) {
     '" onerror="this.onerror=null;this.src=this.dataset.full" alt="">';
 }
 
-function photoCards(ps, withRank, g) {
+function photoCards(ps, withRank) {
   return ps.map(function (p, i) {
     return '<div class="pc" onclick="openLight(\'' + p.id + '\')">' +
       tileImg(p) +
-      badgeHTML(p, g) +
+      badgeHTML(p) +
       (withRank ? '<span class="rank">#' + (i + 1) + '</span>' : '') + '</div>';
   }).join('');
 }
@@ -346,7 +358,7 @@ function render() {
     grid.innerHTML = '<div class="empty">Nothing in this tier for this game yet. Tap <b>All tiers</b> to see everything.</div>';
     return;
   }
-  grid.innerHTML = photoCards(ps.slice(0, shown), graded, g) + moreBar(ps.length);
+  grid.innerHTML = photoCards(ps.slice(0, shown), graded) + moreBar(ps.length);
 }
 
 function tagCount(num) {

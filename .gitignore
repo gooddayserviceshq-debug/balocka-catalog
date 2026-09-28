@@ -24,6 +24,7 @@
 *.mov
 .DS_Store
 .backups/
+.grade-journal/
 __pycache__/
 rehost.sh
 season-t-manifest.csv

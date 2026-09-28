@@ -76,6 +76,15 @@ def main():
 
     sandbox = tempfile.mkdtemp(prefix='thumbguard_test_',
                                dir=os.environ.get('TMPDIR') or '/tmp')
+    # make_thumb() now derives a season/tn file as write boundary part 3, so
+    # every make_thumb call below would land a stray tile in the SERVED
+    # directory. One (season/tn/rock_ok.jpg) was found untracked in the repo,
+    # left by a previous run of this suite. Point the tier at the sandbox: a
+    # test must not write into what Pages publishes.
+    import build_thumbtier as bt
+    real_tn = bt.TNDIR
+    bt.TNDIR = os.path.join(sandbox, 'tn')
+    os.makedirs(bt.TNDIR, exist_ok=True)
     try:
         # --- size guard on an un-resized file --------------------------------
         raw = os.path.join(sandbox, 'raw_copy.jpg')
@@ -263,6 +272,7 @@ def main():
             check('collision refusal left thumb_baseline.txt untouched',
                   check_thumbs.load_baseline() == baseline)
     finally:
+        bt.TNDIR = real_tn
         shutil.rmtree(sandbox, ignore_errors=True)
 
     return summarise()
