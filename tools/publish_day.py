@@ -94,11 +94,83 @@ def save_data_js(d):
     stamp(quiet=True)
 
 
-def local_assets(date):
-    """R7 frames for a date whose ORIGINAL is really on this disk."""
+# ---------------------------------------------------------------------------
+# A DATE IS NOT AN EVENT
+# ---------------------------------------------------------------------------
+# local_assets() used to select on camera + calendar date alone. That is only
+# correct when the camera shot exactly one thing that day, and on this library it
+# does not hold: 2026-09-11 carries 1,883 frames of the "9/11 Top Gun Run- City
+# of Smyrna" 5K AND 346 frames of the Siegel football game, interleaved between
+# 18:49 and 21:37 (verified from the pixels 2026-09-28 -- runners with race bibs
+# on a lit path vs. helmets and shoulder pads under stadium lights). No time
+# filter splits them: race frames run to 20:46 and football frames start at
+# 20:44, a 2.5-minute overlap where the photographer was walking between venues.
+#
+# A date-only select on that night hands a football gallery 1,647 photographs of
+# a community road race. Album membership is the splitter that works, so event
+# scoping lives here, in the one function both tools select through.
+#
+# ALBUM_JOIN is discovered rather than hard-coded: the Z_<n>ASSETS join table is
+# renumbered by Photos version upgrades, and a stale constant would silently
+# select nothing (which reads as "this night is empty", not as "the query broke").
+def album_join_table(con):
+    """(join_table, album_col, asset_col) for this Photos schema version."""
+    for (t,) in con.execute(
+            "select name from sqlite_master where type='table' "
+            "and name like 'Z\\_%ASSETS' escape '\\'"):
+        cols = [c[1] for c in con.execute('pragma table_info("%s")' % t)]
+        alb = [c for c in cols if c.endswith('ALBUMS')]
+        ass = [c for c in cols if c.endswith('ASSETS') and not c.startswith('Z_FOK')]
+        if alb and ass:
+            return t, alb[0], ass[0]
+    raise SystemExit('FAIL: cannot find the album join table in this Photos library')
+
+
+def date_events(date):
+    """Album title -> R7 frame count for one shoot date, plus the no-album count.
+
+    This is what makes a mixed-event night visible BEFORE anything is published.
+    """
+    con = sqlite3.connect('file:%s?mode=ro' % DB, uri=True)
+    jt, albcol, asscol = album_join_table(con)
+    rows = con.execute("""
+        select a.Z_PK from ZASSET a
+          left join ZEXTENDEDATTRIBUTES e on e.Z_PK = a.ZEXTENDEDATTRIBUTES
+         where a.ZTRASHEDSTATE = 0 and e.ZCAMERAMODEL = 'Canon EOS R7'
+           and date(datetime(a.ZDATECREATED+?,'unixepoch','localtime')) = ?""",
+        (APPLE_EPOCH, date)).fetchall()
+    pks = [r[0] for r in rows]
+    # Count DISTINCT frames per title. There are two albums both titled
+    # 'FOOTBALL IG ' on this library (Z_PK 93 normal, 112 shared), and a frame in
+    # both was counted twice -- 09-11's football set reported 690 instead of 346.
+    # An inflated minority count only ever makes the gate more eager, but a count
+    # this tool PRINTS as evidence has to be the true one.
+    per_title, seen = {}, set()
+    if pks:
+        qs = ','.join('?' * len(pks))
+        for pk, title in con.execute(
+                'select j."%s", al.ZTITLE from "%s" j '
+                'join ZGENERICALBUM al on al.Z_PK = j."%s" where j."%s" in (%s)'
+                % (asscol, jt, albcol, asscol, qs), pks):
+            per_title.setdefault((title or '').strip(), set()).add(pk)
+            seen.add(pk)
+    counts = {t: len(v) for t, v in per_title.items()}
+    con.close()
+    return counts, len(pks) - len(seen), len(pks)
+
+
+def local_assets(date, album=None):
+    """R7 frames for a date whose ORIGINAL is really on this disk.
+
+    `album` scopes the select to one event on a multi-event night (substring
+    match on the album title, case-insensitive, so the caller need not reproduce
+    the trailing space in 'FOOTBALL IG '). Without it the select is date-wide,
+    which is correct ONLY for a single-event day -- callers must gate on
+    date_events() before trusting that.
+    """
     con = sqlite3.connect('file:%s?mode=ro' % DB, uri=True)
     rows = con.execute("""
-        select a.ZUUID, aaa.ZORIGINALFILENAME,
+        select a.Z_PK, a.ZUUID, aaa.ZORIGINALFILENAME,
                datetime(a.ZDATECREATED+%d,'unixepoch','localtime')
           from ZASSET a
           left join ZEXTENDEDATTRIBUTES e on e.Z_PK = a.ZEXTENDEDATTRIBUTES
@@ -106,9 +178,33 @@ def local_assets(date):
          where a.ZTRASHEDSTATE = 0
            and e.ZCAMERAMODEL = 'Canon EOS R7'
            and date(datetime(a.ZDATECREATED+%d,'unixepoch','localtime')) = ?
-         order by a.ZDATECREATED""" % (APPLE_EPOCH, APPLE_EPOCH), (date,))
+         order by a.ZDATECREATED""" % (APPLE_EPOCH, APPLE_EPOCH), (date,)).fetchall()
+
+    keep = None
+    if album is not None:
+        jt, albcol, asscol = album_join_table(con)
+        pks = [r[0] for r in rows]
+        keep = set()
+        if pks:
+            qs = ','.join('?' * len(pks))
+            for pk, title in con.execute(
+                    'select j."%s", al.ZTITLE from "%s" j '
+                    'join ZGENERICALBUM al on al.Z_PK = j."%s" where j."%s" in (%s)'
+                    % (asscol, jt, albcol, asscol, qs), pks):
+                if album.strip().lower() in (title or '').strip().lower():
+                    keep.add(pk)
+        if not keep:
+            con.close()
+            sys.exit('FAIL: album %r matches 0 R7 frames on %s. Refusing to fall '
+                     'back to the whole date -- that is a different and much '
+                     'larger selection, and on a mixed-event night it is the '
+                     'wrong event.' % (album, date))
+    con.close()
+
     out, missing = [], 0
-    for u, fn, ts in rows:
+    for pk, u, fn, ts in rows:
+        if keep is not None and pk not in keep:
+            continue
         sub = os.path.join(ORIG, u[0])
         p = None
         if os.path.isdir(sub):
@@ -121,6 +217,96 @@ def local_assets(date):
         else:
             missing += 1
     return out, missing
+
+
+def album_overlap(date, album):
+    """Frames in `album` that ALSO sit in another material album that night.
+
+    A frame can legitimately live in two albums: on 2026-09-11 two photographs of
+    police vehicles staged at the 9/11 memorial are filed under BOTH the road
+    race and the football album (verified from the pixels -- they are parked
+    vehicles, not runners and not football action). That is real, so scoping
+    cannot assume the two events partition the night cleanly. It IS worth
+    printing: a frame reaching a gallery through a second event's album is the
+    one case where album scoping still lets something through.
+    """
+    con = sqlite3.connect('file:%s?mode=ro' % DB, uri=True)
+    jt, albcol, asscol = album_join_table(con)
+    rows = con.execute("""
+        select a.Z_PK from ZASSET a
+          left join ZEXTENDEDATTRIBUTES e on e.Z_PK = a.ZEXTENDEDATTRIBUTES
+         where a.ZTRASHEDSTATE = 0 and e.ZCAMERAMODEL = 'Canon EOS R7'
+           and date(datetime(a.ZDATECREATED+?,'unixepoch','localtime')) = ?""",
+        (APPLE_EPOCH, date)).fetchall()
+    pks = [r[0] for r in rows]
+    if not pks:
+        con.close()
+        return set(), {}
+    qs = ','.join('?' * len(pks))
+    per_pk = {}
+    for pk, title in con.execute(
+            'select j."%s", al.ZTITLE from "%s" j '
+            'join ZGENERICALBUM al on al.Z_PK = j."%s" where j."%s" in (%s)'
+            % (asscol, jt, albcol, asscol, qs), pks):
+        per_pk.setdefault(pk, set()).add((title or '').strip())
+    con.close()
+    counts, _na, total = date_events(date)
+    material = {t for t, n in counts.items()
+                if n >= MIXED_EVENT_MIN_FRAMES and n >= MIXED_EVENT_MIN_SHARE * total}
+    want = album.strip().lower()
+    over = set()
+    for pk, titles in per_pk.items():
+        if not any(want in t.lower() for t in titles):
+            continue
+        others = {t for t in titles if t in material and want not in t.lower()}
+        if others:
+            over.add(pk)
+    return over, counts
+
+
+# A night is "mixed" when a second album holds a material share of the frames.
+# Below this the minority is stray tagging noise (a handful of frames someone
+# also dropped in 'Instagram'), not a second event worth blocking a publish over.
+MIXED_EVENT_MIN_SHARE = 0.05
+MIXED_EVENT_MIN_FRAMES = 25
+
+
+def assert_single_event(date, album, tool_hint=''):
+    """Refuse a date-wide selection on a night that holds two events.
+
+    Called by BOTH publish_day and extend_day before selecting. When --album is
+    given the caller has already answered the question, so this only reports --
+    including any frames that reach the scope through a second event's album.
+    """
+    counts, no_album, total = date_events(date)
+    material = {t: n for t, n in counts.items()
+                if n >= MIXED_EVENT_MIN_FRAMES and n >= MIXED_EVENT_MIN_SHARE * total}
+    if album:
+        print('   event scope: album ~%r on %s (albums that night: %s)'
+              % (album, date, counts or 'none'))
+        if len(material) > 1:
+            over, _c = album_overlap(date, album)
+            if over:
+                print('   NOTE: %d frame(s) in this scope are ALSO filed under '
+                      'another event that night. Album membership is a human '
+                      'judgement, not a partition -- eyeball them before publish.'
+                      % len(over))
+        return
+    if len(material) > 1:
+        lines = '\n     '.join('%-46s %5d frames' % (t or '(untitled)', n)
+                               for t, n in sorted(material.items(),
+                                                  key=lambda kv: -kv[1]))
+        sys.exit(
+            'REFUSING: %s is a MIXED-EVENT night -- %d R7 frames spread across %d '
+            'albums:\n     %s\n     %-46s %5d frames\n'
+            'A calendar date is not an event. Selecting date-wide would put one '
+            'event\'s photographs into the other\'s gallery (on 2026-09-11 that is '
+            '1,647 road-race frames into a football gallery). Re-run with '
+            '--album "<title>" to scope to one event.%s'
+            % (date, total, len(material), lines, '(in no album)', no_album,
+               ('\n' + tool_hint) if tool_hint else ''))
+    print('   event scope: %s is a single-event night (%d R7 frames, albums: %s)'
+          % (date, total, counts or 'none'))
 
 
 def orientations(paths):
@@ -305,6 +491,10 @@ def main():
     ap.add_argument('--label', required=True)
     ap.add_argument('--sub', default='')
     ap.add_argument('--prefix', required=True, help='id prefix, e.g. rock_')
+    ap.add_argument('--album', default=None,
+                    help='scope selection to one album (substring match). REQUIRED '
+                         'on a mixed-event night, where a calendar date holds two '
+                         'different events.')
     ap.add_argument('--limit', type=int, default=0)
     ap.add_argument('--apply', action='store_true')
     ap.add_argument('--dry-run', action='store_true')
@@ -323,7 +513,9 @@ def main():
     if not a.game_id.endswith(mmdd):
         sys.exit('FAIL: game id %r must end in %s to sort correctly' % (a.game_id, mmdd))
 
-    assets, missing = local_assets(a.date)
+    assert_single_event(a.date, a.album,
+                        'e.g. python3 publish_day.py %s --album "FOOTBALL IG" ...' % a.date)
+    assets, missing = local_assets(a.date, album=a.album)
     if a.limit:
         assets = assets[:a.limit]
     print('%s: %d local frames selected, %d iCloud-only and NOT publishable'

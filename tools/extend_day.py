@@ -56,46 +56,12 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from publish_day import (APPLE_EPOCH, DATA_JS, MANIFEST, ORIG, TDIR, DB,
-                         backup_data_js, load_data_js, make_thumb, orientations,
-                         save_data_js)
+                         assert_single_event, backup_data_js, load_data_js,
+                         local_assets, make_thumb, orientations, save_data_js)
 
 # Where merge_player_tags.py reads its jersey tags from; --only-tagged uses the
 # same source so the two tools cannot disagree about what "tagged" means.
 TAGDIR = os.path.join(os.path.expanduser('~'), 'Pictures/balocka-library')
-
-
-def local_assets(date):
-    """Every R7 frame that night whose ORIGINAL really exists on this disk.
-
-    Same filesystem-truth rule as publish_day: a DB column claiming local is not
-    the bytes being present. Returns (uuid, filename, timestamp, path).
-    """
-    con = sqlite3.connect('file:%s?mode=ro' % DB, uri=True)
-    rows = con.execute("""
-        select a.ZUUID, aaa.ZORIGINALFILENAME,
-               datetime(a.ZDATECREATED+%d,'unixepoch','localtime')
-          from ZASSET a
-          left join ZEXTENDEDATTRIBUTES e on e.Z_PK = a.ZEXTENDEDATTRIBUTES
-          left join ZADDITIONALASSETATTRIBUTES aaa on aaa.ZASSET = a.Z_PK
-         where a.ZTRASHEDSTATE = 0
-           and e.ZCAMERAMODEL = 'Canon EOS R7'
-           and date(datetime(a.ZDATECREATED+%d,'unixepoch','localtime')) = ?
-         order by a.ZDATECREATED""" % (APPLE_EPOCH, APPLE_EPOCH), (date,)).fetchall()
-    con.close()
-    out, missing = [], 0
-    for u, fn, ts in rows:
-        sub = os.path.join(ORIG, u[0])
-        p = None
-        if os.path.isdir(sub):
-            for f in os.listdir(sub):
-                if f.startswith(u):
-                    p = os.path.join(sub, f)
-                    break
-        if p:
-            out.append((u, fn or (u + '.JPG'), ts, p))
-        else:
-            missing += 1
-    return out, missing
 
 
 def published_identity(game, manifest_path):
@@ -195,6 +161,11 @@ def main():
     ap.add_argument('--only-tagged', action='store_true',
                     help='append ONLY jersey-tagged frames (what makes a frame '
                          'findable); without it every local frame is appended')
+    ap.add_argument('--album', default=None,
+                    help='scope selection to one album (substring match). REQUIRED '
+                         'on a mixed-event night: 2026-09-11 holds a 5K road race '
+                         'AND a football game, and a date-wide append puts one in '
+                         "the other's gallery.")
     ap.add_argument('--force-curated', action='store_true',
                     help='append to a CURATED gallery, overriding human curation')
     a = ap.parse_args()
@@ -211,7 +182,18 @@ def main():
 
     existing = {p['id'] for p in game['photos']}
     ident = published_identity(game, MANIFEST)
-    assets, still_icloud = local_assets(a.date)
+
+    # EVENT SCOPE FIRST. This runs BEFORE the curation gate on purpose: the
+    # curation gate can be waived with --force-curated, and on 2026-09-11 that
+    # waiver was the whole disaster path -- it would have appended 1,795 frames
+    # to siegel-0911, of which 1,647 are a community 5K. --force-curated says
+    # "yes, overrule the human's selection"; it must never also mean "and pull in
+    # a different event". There is no flag that waives this one.
+    assert_single_event(a.date, a.album,
+                        'e.g. python3 extend_day.py %s --game-id %s --prefix %s '
+                        '--album "FOOTBALL IG" --dry-run'
+                        % (a.date, a.game_id, a.prefix))
+    assets, still_icloud = local_assets(a.date, album=a.album)
 
     tagged = tagged_stems(a.date)
     if a.only_tagged and tagged is None:
