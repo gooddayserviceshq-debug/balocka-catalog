@@ -155,6 +155,101 @@ def orientations(paths):
         os.unlink(argfile)
 
 
+# ---------------------------------------------------------------------------
+# season/t write boundary
+# ---------------------------------------------------------------------------
+# On 2026-09-27 the live site went OVER the 1GB GitHub Pages limit: 99 full-res
+# originals (1,112,137,163 B) were sitting in season/t. Each one had a correct
+# ~33.6KB twin already present and was named "<stem> 2.jpg" -- macOS's collision
+# suffix. So the encoder never failed; an unintended SECOND write landed beside
+# the good thumb and nothing checked it. 1.1GB shipped silently.
+#
+# These guards close that boundary. They are deliberately in make_thumb(), the
+# one function every TDIR write funnels through (publish_day.py main() and
+# extend_day.py both call it; grade_day.py and merge_player_tags.py only READ
+# TDIR). They RAISE. A warn-and-continue is exactly how the 1.1GB got in.
+COLLISION_SUFFIX_RE = re.compile(r'^(?P<stem>.+) (?P<n>\d+)\.jpg$', re.IGNORECASE)
+
+
+class ThumbWriteError(RuntimeError):
+    """A write into season/t broke a thumbnail invariant. Never caught in-tree."""
+
+
+def image_dimensions(path):
+    """(width, height) for a file on disk. Pillow reads the header only; sips is
+    the fallback so the guard still works on a machine without Pillow.
+
+    NOTE, deliberate: ImportError falls THROUGH to sips silently -- that is the
+    no-Pillow machine, not a failure. Only a genuine decode error (corrupt file,
+    not an image) raises ThumbWriteError. Do not "fix" the bare `except
+    ImportError: pass` into a hard failure; it would break every Pillow-less
+    machine, macOS ships sips by default and Pillow is not a dependency here.
+    """
+    try:
+        from PIL import Image
+        with Image.open(path) as im:
+            return im.size
+    except ImportError:
+        pass
+    except Exception as e:
+        raise ThumbWriteError('cannot read dimensions of %s (%s)' % (path, e))
+    r = subprocess.run(['sips', '-g', 'pixelWidth', '-g', 'pixelHeight', path],
+                       capture_output=True, text=True)
+    dims = {}
+    for line in r.stdout.splitlines():
+        key, _, val = line.strip().partition(':')
+        if key in ('pixelWidth', 'pixelHeight'):
+            try:
+                dims[key] = int(val.strip())
+            except ValueError:
+                pass
+    if 'pixelWidth' in dims and 'pixelHeight' in dims:
+        return dims['pixelWidth'], dims['pixelHeight']
+    raise ThumbWriteError('cannot read dimensions of %s (sips gave: %r)'
+                          % (path, r.stdout.strip()))
+
+
+def guard_thumb_name(dst):
+    """Reject a collision-suffixed destination BEFORE any bytes are written.
+
+    "<stem> 2.jpg" can only mean a duplicate write: real ids are
+    <prefix>_<canon-stem> and never carry a space-digit tail.
+    """
+    base = os.path.basename(dst)
+    m = COLLISION_SUFFIX_RE.match(base)
+    if m:
+        raise ThumbWriteError(
+            'REFUSING to write %r into season/t: the name carries a macOS '
+            'collision suffix (" %s.jpg"), which can only mean an unintended '
+            'duplicate write beside the real thumbnail %r. This is the exact '
+            'shape of the 99-stray / 1.1GB incident. Fix the id, do not rename '
+            'around this check.' % (base, m.group('n'), m.group('stem') + '.jpg'))
+
+
+def guard_thumb_file(dst):
+    """Verify AFTER encoding that the file really is a thumbnail.
+
+    sips running without error is not evidence that it shrank anything, so this
+    measures the file that actually landed. An oversized file is DELETED before
+    raising -- the invariant is that nothing oversized exists in season/t, and
+    leaving the offender on disk for a later `git add -A` to sweep up would
+    reproduce the original incident.
+    """
+    if not os.path.exists(dst):
+        raise ThumbWriteError('make_thumb produced no file at %s' % dst)
+    w, h = image_dimensions(dst)
+    if max(w, h) > THUMB_W:
+        size = os.path.getsize(dst)
+        os.unlink(dst)
+        raise ThumbWriteError(
+            'REFUSING to leave %r in season/t: long edge %dpx exceeds THUMB_W=%d '
+            '(%dx%d, %s bytes). The resize did not take effect, so this is a '
+            'full-res original, not a thumbnail. Offending file deleted; fix the '
+            'encode path and re-run.'
+            % (os.path.basename(dst), max(w, h), THUMB_W, w, h, format(size, ',')))
+    return w, h
+
+
 # EXIF Orientation -> the sips operations that bake it into the pixels.
 ROT = {1: [], 2: [['--flip', 'horizontal']], 3: [['--rotate', '180']],
        4: [['--flip', 'vertical']],
@@ -178,6 +273,8 @@ def make_thumb(src, dst, o):
        1GB Pages budget, permanently in git history. Pillow re-encodes at the
        catalog's quality and jersey numbers stay legible.
     """
+    # WRITE BOUNDARY, part 1 of 2: reject the name before any bytes land.
+    guard_thumb_name(dst)
     shutil.copy2(src, dst)
     subprocess.run(['sips', '-Z', str(THUMB_W), dst], capture_output=True, check=True)
     for op in ROT.get(o, []):
@@ -195,6 +292,9 @@ def make_thumb(src, dst, o):
         if o != 1:
             subprocess.run(['exiftool', '-overwrite_original', '-Orientation=1',
                             '-n', dst], capture_output=True)
+    # WRITE BOUNDARY, part 2 of 2: verify what actually landed on disk. sips
+    # exiting 0 is not evidence it resized anything.
+    guard_thumb_file(dst)
     return o
 
 
