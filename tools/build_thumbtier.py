@@ -208,6 +208,68 @@ def guard_tn_tree(quiet=False):
     return names, total
 
 
+def make_one(tile_path, quiet=True):
+    """Derive the tn thumbnail for ONE season/t tile, guards included.
+
+    WHY THIS IS CALLED FROM publish_day.make_thumb()
+    ------------------------------------------------
+    The tier is only as good as its weakest writer. publish_day and extend_day
+    both append records carrying `'thumb': 't/<id>.jpg'` -- correct before this
+    tier existed, and now a silent regression: a night published without a
+    matching tn pass puts full tiles back in the grid for those frames, and
+    nothing on a green board would say so. Measured once already: a concurrent
+    publish added 148 records mid-session and they were only wired to tn/
+    because someone re-ran the batch builder by hand.
+
+    Remembering a second command is not an invariant. So the derivative is
+    produced by the SAME function that produces the tile, which is the one
+    funnel every TDIR write already passes through. Callers keep writing
+    't/<id>.jpg' into the record; build_thumbtier --apply rewrites the key and
+    is idempotent, so both paths converge.
+
+    Returns the tn path, or raises ThumbTierError. Never silently skips: a
+    missing derivative is the defect this whole card exists to remove.
+    """
+    base = os.path.basename(tile_path)
+    guard_tn_names([base])
+    os.makedirs(TNDIR, exist_ok=True)
+    dst = os.path.join(TNDIR, base)
+    r = subprocess.run(
+        ['magick', tile_path,
+         '-resize', '%dx%d' % (THUMB2_W, THUMB2_W),
+         '-quality', str(THUMB2_QUALITY),
+         '-strip', '-interlace', 'Plane',
+         '-sampling-factor', '4:2:0', '-colorspace', 'sRGB', dst],
+        capture_output=True, text=True)
+    if r.returncode != 0:
+        raise ThumbTierError('could not derive %s: %s'
+                             % (base, (r.stderr or '')[-300:]))
+    if not os.path.exists(dst):
+        raise ThumbTierError('magick wrote no file at %s' % dst)
+    # Same post-write measurement the batch path applies, on one file: magick
+    # exiting 0 is not evidence it resized anything.
+    size = os.path.getsize(dst)
+    if size > MAX_TN_BYTES:
+        os.unlink(dst)
+        raise ThumbTierError(
+            'REFUSING %s in season/tn: %s bytes exceeds MAX_TN_BYTES=%s, so the '
+            'resize did not take effect. Offender deleted.'
+            % (base, format(size, ','), format(MAX_TN_BYTES, ',')))
+    import check_thumbs
+    wh = check_thumbs.dims_batch([dst]).get(os.path.realpath(dst))
+    if not wh:
+        os.unlink(dst)
+        raise ThumbTierError('could not measure %s after writing it' % base)
+    if max(wh) > THUMB2_W:
+        os.unlink(dst)
+        raise ThumbTierError(
+            'REFUSING %s in season/tn: long edge %dpx exceeds THUMB2_W=%d '
+            '(%dx%d). Offender deleted.' % (base, max(wh), THUMB2_W, wh[0], wh[1]))
+    if not quiet:
+        print('   tn: %s %dx%d %s B' % (base, wh[0], wh[1], format(size, ',')))
+    return dst
+
+
 # ---------------------------------------------------------------------------
 # build
 # ---------------------------------------------------------------------------

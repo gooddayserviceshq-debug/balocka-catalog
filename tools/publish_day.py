@@ -481,6 +481,23 @@ def make_thumb(src, dst, o):
     # WRITE BOUNDARY, part 2 of 2: verify what actually landed on disk. sips
     # exiting 0 is not evidence it resized anything.
     guard_thumb_file(dst)
+
+    # WRITE BOUNDARY, part 3: the season/tn derivative the GRID requests.
+    #
+    # season/t is now only what the lightbox opens; every grid cell asks for the
+    # 200px file in season/tn (see tools/build_thumbtier.py). A night published
+    # without a matching tn pass silently puts 35KB tiles back in the grid for
+    # those frames -- 148 records went through exactly that gap mid-session and
+    # were only saved by someone re-running the batch builder by hand.
+    #
+    # So the derivative is produced HERE, in the same funnel as the tile, rather
+    # than left to a second command a future caller has to remember. Callers
+    # still record 'thumb': 't/<id>.jpg'; build_thumbtier.py --apply rewrites
+    # the key to tn/ and is idempotent, so both paths converge on the same
+    # state. Deliberately NOT wrapped in try/except: a tile with no derivative
+    # is the defect, and warn-and-continue is how 1.1GB shipped once already.
+    import build_thumbtier
+    build_thumbtier.make_one(dst)
     return o
 
 
