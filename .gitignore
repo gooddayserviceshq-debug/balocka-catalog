@@ -31,3 +31,6 @@ season-t-manifest.csv
 season/data.js.bak-*
 season/data.js.grade-bak-*
 tools/__pycache__/
+
+# Runway generations (tools/runway_animate.py). Repo root is Pages-served.
+.runway-out/
